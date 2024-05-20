@@ -15,7 +15,7 @@ RUN go mod download && go mod verify
 COPY . .
 
 # Compile and run the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /docker-gs-ping ./main
+RUN CGO_ENABLED=0 GOOS=linux go build -o /docker-gs-ping .
 
 # Entry command of the application (executed command to run the application)
 CMD ["/docker-gs-ping"]
