@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  messaging:
+    container_name: messaging
+    ports:
+      - "3000:3000"
+    build:
+      context: app
+    volumes:
+      - ./app:/app
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      MONGO_URI: ${DATABASE_URL}
+
+  database:
+    container_name: database_messaging_management
+    image: "mongo:7.0-rc"
+    ports:
+      - "27017"
+    environment:
+      MONGO_PASSWORD: ${DATABASE_PASSWORD}
+      MONGO_USER: ${DATABASE_USER}
+      MONGO_DB: ${DATABASE_NAME}
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+
