@@ -7,6 +7,7 @@ import (
 	"musync_messagingManagement/entities"
 	"musync_messagingManagement/responses"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -48,11 +49,22 @@ func GetMessageById(c *fiber.Ctx) error {
 // GetMessageByUser : with given JSON struct containing user id, return list of messages of the user
 func GetMessageByUser(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	userId := c.Params("userId")
+	userId, err := strconv.Atoi(c.Params("userId"))
+	var messages []entities.Message
 	defer cancel()
 
-	messagesReceiver, err1 := messageCollection.Find(ctx, bson.M{"receiverId": userId})
-	messagesSender, err2 := messageCollection.Find(ctx, bson.M{"senderId": userId})
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(
+			responses.MessageResponse{
+				Status:  http.StatusBadRequest,
+				Message: "error",
+				Data:    &fiber.Map{"data": err.Error()},
+			},
+		)
+	}
+
+	messagesReceiver, err1 := messageCollection.Find(ctx, bson.M{"receiverid": userId})
+	messagesSender, err2 := messageCollection.Find(ctx, bson.M{"senderid": userId})
 	if err1 != nil || err2 != nil {
 		var err error = nil
 		if err1 != nil {
@@ -69,7 +81,6 @@ func GetMessageByUser(c *fiber.Ctx) error {
 		)
 	}
 
-	var messages []entities.Message
 	for messagesReceiver.Next(ctx) {
 		var singleUser entities.Message
 		var err error
@@ -85,11 +96,12 @@ func GetMessageByUser(c *fiber.Ctx) error {
 
 		messages = append(messages, singleUser)
 	}
+	messagesReceiver.Close(ctx)
 
 	for messagesSender.Next(ctx) {
 		var singleUser entities.Message
 		var err error
-		if err = messagesReceiver.Decode(&singleUser); err != nil {
+		if err = messagesSender.Decode(&singleUser); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(
 				responses.MessageResponse{
 					Status:  http.StatusInternalServerError,
@@ -101,6 +113,7 @@ func GetMessageByUser(c *fiber.Ctx) error {
 
 		messages = append(messages, singleUser)
 	}
+	messagesSender.Close(ctx)
 
 	return c.Status(http.StatusOK).JSON(
 		responses.MessageResponse{
